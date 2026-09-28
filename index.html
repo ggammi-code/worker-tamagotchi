@@ -892,6 +892,39 @@ function WalkInAnimation({ onComplete }) {
 }
 
 // ---------- 숫자로 직접 조정 가능한 날짜 입력 (년/월/일) ----------
+// ---------- 토글 스위치 ----------
+function ToggleSwitch({ checked, onChange }) {
+  return (
+    <div
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 40,
+        height: 24,
+        borderRadius: 12,
+        background: checked ? "#2F6B4F" : "var(--border-strong)",
+        position: "relative",
+        cursor: "pointer",
+        transition: "background 0.2s ease",
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 2,
+          left: checked ? 18 : 2,
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          background: "#FFFFFF",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.25)",
+          transition: "left 0.2s ease",
+        }}
+      />
+    </div>
+  );
+}
+
 function NumericDateInput({ value, onChange }) {
   const initial = value ? value.split("-") : ["", "", ""];
   const [y, setY] = useState(initial[0] || "");
@@ -1652,9 +1685,13 @@ function SeveranceTab({ profile, onUpdateProfile }) {
   const [leavePayInput, setLeavePayInput] = useState(profile.annualLeavePay || "");
   const [investInput, setInvestInput] = useState(profile.investReturn || "");
   const [targetDate, setTargetDate] = useState("");
+  const [revealed, setRevealed] = useState(false);
 
   const severanceType = profile.severanceType || "db";
   const isDC = severanceType === "dc";
+  const hideAmounts = !!profile.hideAmounts;
+  const masked = hideAmounts && !revealed;
+  const mask = (amount) => (masked ? "₩ ••••••••" : formatKRW(amount));
 
   const result = calcSeverance({
     joinDate: profile.joinDate,
@@ -1669,6 +1706,25 @@ function SeveranceTab({ profile, onUpdateProfile }) {
 
   return (
     <div style={S.tabContent}>
+      <div style={S.card}>
+        <div style={S.cardRowBetween}>
+          <span style={S.cardLabel}>금액 숨기기</span>
+          <ToggleSwitch
+            checked={hideAmounts}
+            onChange={(v) => {
+              onUpdateProfile({ hideAmounts: v });
+              setRevealed(false);
+            }}
+          />
+        </div>
+        <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 6 }}>켜두면 월급·퇴직금 금액이 가려지고, "보기"를 눌러야만 확인할 수 있어요</div>
+        {hideAmounts && (
+          <button style={{ ...S.linkBtn, marginTop: 8 }} onClick={() => setRevealed(!revealed)}>
+            {revealed ? "다시 숨기기" : "보기"}
+          </button>
+        )}
+      </div>
+
       <div style={S.card}>
         <span style={S.cardLabel}>퇴직연금 유형</span>
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
@@ -1690,14 +1746,14 @@ function SeveranceTab({ profile, onUpdateProfile }) {
           <span style={S.cardLabel}>{isDC ? "DC 예상 수령액" : "퇴직금 예상액"}</span>
         </div>
         <div style={{ fontFamily: "var(--font-main)", fontSize: 24, color: "#2F6B4F", textAlign: "center", padding: "14px 0" }}>
-          {formatKRW(isDC ? dcTotal : result.severance)}
+          {mask(isDC ? dcTotal : result.severance)}
         </div>
         <div style={{ fontSize: 10, color: "var(--text-tertiary)", textAlign: "center" }}>
-          {targetDate ? `${targetDate} 기준` : "오늘 기준"} 재직 {years}년 · 1일 평균임금 {formatKRW(result.avgDailyWage)}
+          {targetDate ? `${targetDate} 기준` : "오늘 기준"} 재직 {years}년 · 1일 평균임금 {mask(result.avgDailyWage)}
         </div>
         {isDC && (
           <div style={{ fontSize: 10, color: "var(--text-secondary)", textAlign: "center", marginTop: 6 }}>
-            적립원금 {formatKRW(result.severance)} + 운용수익 {formatKRW(investReturn)}
+            적립원금 {mask(result.severance)} + 운용수익 {mask(investReturn)}
           </div>
         )}
       </div>
@@ -1726,7 +1782,7 @@ function SeveranceTab({ profile, onUpdateProfile }) {
         {editingSalary ? (
           <input style={{ ...S.input, marginTop: 8 }} type="number" value={salaryInput} onChange={(e) => setSalaryInput(e.target.value)} placeholder="월급 입력" />
         ) : (
-          <div style={{ fontFamily: "var(--font-main)", fontSize: 16, color: "var(--text-primary)", marginTop: 6 }}>{profile.salary ? formatKRW(profile.salary) : "미입력"}</div>
+          <div style={{ fontFamily: "var(--font-main)", fontSize: 16, color: "var(--text-primary)", marginTop: 6 }}>{profile.salary ? mask(profile.salary) : "미입력"}</div>
         )}
       </div>
 
@@ -1752,7 +1808,7 @@ function SeveranceTab({ profile, onUpdateProfile }) {
           </>
         ) : (
           <div style={{ fontSize: 12, color: "var(--text-chip)", marginTop: 6, lineHeight: 1.6 }}>
-            상여금 {profile.annualBonus ? formatKRW(profile.annualBonus) : "미입력"} · 연차수당 {profile.annualLeavePay ? formatKRW(profile.annualLeavePay) : "미입력"}
+            상여금 {profile.annualBonus ? mask(profile.annualBonus) : "미입력"} · 연차수당 {profile.annualLeavePay ? mask(profile.annualLeavePay) : "미입력"}
           </div>
         )}
       </div>
@@ -1774,7 +1830,7 @@ function SeveranceTab({ profile, onUpdateProfile }) {
           {editingInvest ? (
             <input style={{ ...S.input, marginTop: 8 }} type="number" value={investInput} onChange={(e) => setInvestInput(e.target.value)} placeholder="예: 500000 (손실이면 음수 입력)" />
           ) : (
-            <div style={{ fontFamily: "var(--font-main)", fontSize: 16, color: "var(--text-primary)", marginTop: 6 }}>{formatKRW(investReturn)}</div>
+            <div style={{ fontFamily: "var(--font-main)", fontSize: 16, color: "var(--text-primary)", marginTop: 6 }}>{mask(investReturn)}</div>
           )}
           <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 6 }}>DC형은 회사가 매년 납입한 금액을 직접 운용해요. 증권사·은행 앱에서 확인한 누적 수익(또는 손실)을 입력하면 예상 수령액에 반영돼요</div>
         </div>
@@ -2134,9 +2190,9 @@ const S = {
   onboardSub: { fontSize: 11, color: "var(--text-tertiary)", marginTop: 8, lineHeight: 1.5 },
   label: { fontSize: 10, color: "var(--text-tertiary)", marginTop: 14, marginBottom: 6, fontFamily: "var(--font-main)", display: "block" },
   input: { width: "100%", background: "var(--card-bg)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", color: "var(--text-primary)", fontSize: 13, outline: "none" },
-  primaryBtn: { background: "#2F6B4F", color: "#FFFFFF", border: "none", borderRadius: 10, padding: "13px 0", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
+  primaryBtn: { width: "100%", background: "#2F6B4F", color: "#FFFFFF", border: "none", borderRadius: 10, padding: "13px 16px", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
   linkBtn: { fontSize: 10, color: "#2F6B4F", background: "transparent", border: "none", cursor: "pointer" },
-  diaryAddBtn: { display: "flex", alignItems: "center", justifyContent: "center", background: "#2F6B4F18", border: "1px dashed #2F6B4F60", borderRadius: 12, padding: "13px 0", color: "#2F6B4F", fontSize: 10, cursor: "pointer" },
+  diaryAddBtn: { width: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#2F6B4F18", border: "1px dashed #2F6B4F60", borderRadius: 12, padding: "13px 16px", color: "#2F6B4F", fontSize: 10, cursor: "pointer" },
   modalOverlay: { position: "absolute", inset: 0, background: "rgba(10,12,18,0.6)", display: "flex", alignItems: "flex-end", zIndex: 10 },
   modalSheet: { width: "100%", background: "var(--card-bg)", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, border: "1px solid var(--border)" },
   modalHeaderRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
