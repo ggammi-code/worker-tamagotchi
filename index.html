@@ -1051,7 +1051,7 @@ function OnboardScreen({ onSubmit }) {
         <input style={S.input} type="number" placeholder="예: 3000000" value={salary} onChange={(e) => setSalary(e.target.value)} />
 
         <label style={S.label}>생년월일 (선택 · 오늘의 운세에 사용)</label>
-        <input style={S.input} type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+        <NumericDateInput value={birthDate} onChange={setBirthDate} />
 
         <label style={S.label}>태어난 시간대 (선택 · 몰라도 괜찮아요)</label>
         <select style={S.input} value={birthHourBlock} onChange={(e) => setBirthHourBlock(e.target.value)}>
@@ -1613,7 +1613,7 @@ function FortuneTab({ profile, onUpdateProfile }) {
             사주 일주(日柱)를 기준으로 오늘의 운세를 계산해요. 태어난 시간은 몰라도 괜찮아요.
           </div>
           <label style={S.label}>생년월일</label>
-          <input style={S.input} type="date" value={birthDateInput} onChange={(e) => setBirthDateInput(e.target.value)} />
+          <NumericDateInput value={birthDateInput} onChange={setBirthDateInput} />
           <label style={S.label}>태어난 시간대 (선택)</label>
           <select style={S.input} value={birthHourInput} onChange={(e) => setBirthHourInput(e.target.value)}>
             <option value="">모름 / 입력 안 함</option>
@@ -1784,7 +1784,7 @@ function SeveranceTab({ profile, onUpdateProfile }) {
           <span style={S.cardLabel}>기준 날짜</span>
         </div>
         <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4, marginBottom: 8 }}>비워두면 오늘 기준, 퇴사 예정일을 넣으면 그날 예상 적립액을 볼 수 있어요</div>
-        <input style={S.input} type="date" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
+        <NumericDateInput value={targetDate} onChange={setTargetDate} />
       </div>
 
       <div style={S.card}>
