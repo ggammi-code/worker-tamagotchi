@@ -258,7 +258,6 @@ function getCharacterImg(gender) {
 // ---------- 캐릭터 이미지 (사용자 제공 일러스트, 남/여 고정 이미지 + 성장 단계 배지 오버레이) ----------
 function PixelAvatar({ stageId, gender, size = 120, glow }) {
   const hasCrown = stageId >= 6;
-  const hasBadgePin = stageId >= 4;
   const accent = ACCENT_BY_STAGE[stageId] || "#2F6B4F";
   const src = getCharacterImg(gender);
   return (
@@ -266,9 +265,6 @@ function PixelAvatar({ stageId, gender, size = 120, glow }) {
       <img src={src} alt="character" style={{ width: "100%", height: "auto", display: "block" }} />
       {hasCrown && (
         <div style={{ position: "absolute", top: -size * 0.12, left: "50%", transform: "translateX(-50%)", fontSize: size * 0.22 }}>👑</div>
-      )}
-      {hasBadgePin && (
-        <div style={{ position: "absolute", top: size * 0.34, right: size * 0.08, width: size * 0.1, height: size * 0.1, borderRadius: "50%", background: accent, border: "2px solid #181C28" }} />
       )}
     </div>
   );
@@ -1707,12 +1703,16 @@ function SeveranceTab({ profile, onUpdateProfile }) {
   const [investInput, setInvestInput] = useState(profile.investReturn || "");
   const [targetDate, setTargetDate] = useState("");
   const [revealed, setRevealed] = useState(false);
+  const [revealedSalary, setRevealedSalary] = useState(false);
 
   const severanceType = profile.severanceType || "db";
   const isDC = severanceType === "dc";
   const hideAmounts = !!profile.hideAmounts;
   const masked = hideAmounts && !revealed;
   const mask = (amount) => (masked ? "₩ ••••••••" : formatKRW(amount));
+  const hideSalary = !!profile.hideSalary;
+  const salaryMasked = hideSalary && !revealedSalary;
+  const maskSalary = (amount) => (salaryMasked ? "₩ ••••••••" : formatKRW(amount));
 
   const result = calcSeverance({
     joinDate: profile.joinDate,
@@ -1729,7 +1729,24 @@ function SeveranceTab({ profile, onUpdateProfile }) {
     <div style={S.tabContent}>
       <div style={S.card}>
         <div style={S.cardRowBetween}>
-          <span style={S.cardLabel}>금액 숨기기</span>
+          <span style={S.cardLabel}>월급 숨기기</span>
+          <ToggleSwitch
+            checked={hideSalary}
+            onChange={(v) => {
+              onUpdateProfile({ hideSalary: v });
+              setRevealedSalary(false);
+            }}
+          />
+        </div>
+        <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 6 }}>켜두면 월급·상여금·연차수당이 가려지고, "보기"를 눌러야만 확인할 수 있어요</div>
+        {hideSalary && (
+          <button style={{ ...S.linkBtn, marginTop: 8 }} onClick={() => setRevealedSalary(!revealedSalary)}>
+            {revealedSalary ? "다시 숨기기" : "보기"}
+          </button>
+        )}
+        <div style={{ height: 1, background: "var(--border)", margin: "14px 0" }} />
+        <div style={S.cardRowBetween}>
+          <span style={S.cardLabel}>퇴직금 숨기기</span>
           <ToggleSwitch
             checked={hideAmounts}
             onChange={(v) => {
@@ -1738,7 +1755,7 @@ function SeveranceTab({ profile, onUpdateProfile }) {
             }}
           />
         </div>
-        <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 6 }}>켜두면 월급·퇴직금 금액이 가려지고, "보기"를 눌러야만 확인할 수 있어요</div>
+        <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 6 }}>켜두면 퇴직금 예상액·평균임금·운용수익이 가려지고, "보기"를 눌러야만 확인할 수 있어요</div>
         {hideAmounts && (
           <button style={{ ...S.linkBtn, marginTop: 8 }} onClick={() => setRevealed(!revealed)}>
             {revealed ? "다시 숨기기" : "보기"}
@@ -1803,7 +1820,7 @@ function SeveranceTab({ profile, onUpdateProfile }) {
         {editingSalary ? (
           <input style={{ ...S.input, marginTop: 8 }} type="number" value={salaryInput} onChange={(e) => setSalaryInput(e.target.value)} placeholder="월급 입력" />
         ) : (
-          <div style={{ fontFamily: "var(--font-main)", fontSize: 16, color: "var(--text-primary)", marginTop: 6 }}>{profile.salary ? mask(profile.salary) : "미입력"}</div>
+          <div style={{ fontFamily: "var(--font-main)", fontSize: 16, color: "var(--text-primary)", marginTop: 6 }}>{profile.salary ? maskSalary(profile.salary) : "미입력"}</div>
         )}
       </div>
 
@@ -1829,7 +1846,7 @@ function SeveranceTab({ profile, onUpdateProfile }) {
           </>
         ) : (
           <div style={{ fontSize: 12, color: "var(--text-chip)", marginTop: 6, lineHeight: 1.6 }}>
-            상여금 {profile.annualBonus ? mask(profile.annualBonus) : "미입력"} · 연차수당 {profile.annualLeavePay ? mask(profile.annualLeavePay) : "미입력"}
+            상여금 {profile.annualBonus ? maskSalary(profile.annualBonus) : "미입력"} · 연차수당 {profile.annualLeavePay ? maskSalary(profile.annualLeavePay) : "미입력"}
           </div>
         )}
       </div>
