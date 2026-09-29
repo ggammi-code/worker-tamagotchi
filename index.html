@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-version" content="20260929-1" />
+<meta name="app-version" content="20260929-2" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
 <title>직장인 다마고찌</title>
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2736,6 +2736,40 @@ const SEVERANCE_TYPES = [
   { id: "dc", label: "DC형 (확정기여형)" },
 ];
 
+
+// DC형(확정기여형): 근로자퇴직급여보장법상 사용자는 매년 1회 이상,
+// 연간 임금총액의 1/12 이상을 근로자의 DC 계좌에 부담금으로 납입해야 함(법정 최소 기준).
+// DB형처럼 "퇴사 시점 평균임금"이 아니라, 입사일부터 1년 단위로 해마다 쌓이는 부담금을 계산함.
+// 과거 연도에도 현재 급여·상여금 기준을 그대로 적용한 값으로, 실제 급여 인상 이력은 반영하지 못함.
+function calcDCDetail({ joinDate, monthlySalary, annualBonus = 0, annualLeavePay = 0, targetDate }) {
+  if (!joinDate || !monthlySalary) return { principal: 0, annualWage: 0, annualContribution: 0, workDays: 0, yearly: [] };
+
+  const start = new Date(joinDate + "T00:00:00");
+  const end = targetDate ? new Date(targetDate + "T00:00:00") : new Date();
+  const annualWage = monthlySalary * 12 + annualBonus + annualLeavePay;
+  const annualContribution = annualWage / 12;
+  const workDays = Math.max(0, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
+
+  const yearly = [];
+  let principal = 0;
+  if (end > start) {
+    let cursor = new Date(start);
+    let idx = 1;
+    while (cursor < end) {
+      const next = new Date(cursor);
+      next.setFullYear(next.getFullYear() + 1);
+      const segEnd = next < end ? next : end;
+      const days = Math.max(0, Math.round((segEnd - cursor) / (1000 * 60 * 60 * 24)));
+      const amount = annualContribution * (days / 365);
+      yearly.push({ year: idx, from: dateKeyOf(cursor), to: dateKeyOf(segEnd), days, amount });
+      principal += amount;
+      cursor = next;
+      idx++;
+    }
+  }
+  return { principal, annualWage, annualContribution, workDays, yearly };
+}
+
 function SeveranceTab({ profile, onUpdateProfile }) {
   const [editingSalary, setEditingSalary] = useState(false);
   const [editingExtra, setEditingExtra] = useState(false);
@@ -2747,6 +2781,7 @@ function SeveranceTab({ profile, onUpdateProfile }) {
   const [targetDate, setTargetDate] = useState("");
   const [revealed, setRevealed] = useState(false);
   const [revealedSalary, setRevealedSalary] = useState(false);
+  const [showAllYears, setShowAllYears] = useState(false);
 
   const severanceType = profile.severanceType || "db";
   const isDC = severanceType === "dc";
@@ -2764,9 +2799,20 @@ function SeveranceTab({ profile, onUpdateProfile }) {
     annualLeavePay: profile.annualLeavePay || 0,
     targetDate: targetDate || null,
   });
-  const years = (result.workDays / 365).toFixed(2);
+  const dcDetail = calcDCDetail({
+    joinDate: profile.joinDate,
+    monthlySalary: profile.salary || 0,
+    annualBonus: profile.annualBonus || 0,
+    annualLeavePay: profile.annualLeavePay || 0,
+    targetDate: targetDate || null,
+  });
+  const principal = isDC ? dcDetail.principal : result.severance;
+  const workDaysForYears = isDC ? dcDetail.workDays : result.workDays;
+  const years = (workDaysForYears / 365).toFixed(2);
   const investReturn = Number(profile.investReturn) || 0;
-  const dcTotal = result.severance + investReturn;
+  const dcTotal = principal + investReturn;
+  const YEAR_LIMIT = 3;
+  const visibleYears = showAllYears ? dcDetail.yearly : dcDetail.yearly.slice(-YEAR_LIMIT);
 
   return (
     <div style={S.tabContent}>
@@ -2830,14 +2876,45 @@ function SeveranceTab({ profile, onUpdateProfile }) {
           {mask(isDC ? dcTotal : result.severance)}
         </div>
         <div style={{ fontSize: 10, color: "var(--text-tertiary)", textAlign: "center" }}>
-          {targetDate ? `${targetDate} 기준` : "오늘 기준"} 재직 {years}년 · 1일 평균임금 {mask(result.avgDailyWage)}
+          {targetDate ? `${targetDate} 기준` : "오늘 기준"} 재직 {years}년 ·{" "}
+          {isDC ? <>연간 DC 부담금 {mask(dcDetail.annualContribution)}</> : <>1일 평균임금 {mask(result.avgDailyWage)}</>}
         </div>
         {isDC && (
           <div style={{ fontSize: 10, color: "var(--text-secondary)", textAlign: "center", marginTop: 6 }}>
-            적립원금 {mask(result.severance)} + 운용수익 {mask(investReturn)}
+            적립원금 {mask(dcDetail.principal)} + 운용수익 {mask(investReturn)}
           </div>
         )}
       </div>
+
+      {isDC && dcDetail.yearly.length > 0 && (
+        <div style={S.card}>
+          <div style={S.cardRowBetween}>
+            <span style={S.cardLabel}>연도별 DC 적립 내역</span>
+            <span style={{ fontSize: 9, color: "var(--text-tertiary)" }}>연간 임금총액 {mask(dcDetail.annualWage)}</span>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            {visibleYears.map((y) => (
+              <div key={y.year} style={S.eventRow}>
+                <span style={{ fontSize: 12, color: "var(--text-primary)" }}>{y.year}년 차</span>
+                <div style={{ marginLeft: 8, flex: 1 }}>
+                  <div style={{ fontSize: 10, color: "var(--text-tertiary)" }}>
+                    {y.from} ~ {y.to} · {y.days}일
+                  </div>
+                </div>
+                <span style={{ fontSize: 12, color: "#2F6B4F", fontFamily: "var(--font-main)" }}>{mask(y.amount)}</span>
+              </div>
+            ))}
+          </div>
+          {dcDetail.yearly.length > YEAR_LIMIT && (
+            <button style={{ ...S.linkBtn, display: "block", margin: "8px auto 0" }} onClick={() => setShowAllYears(!showAllYears)}>
+              {showAllYears ? "접기" : `전체 보기 (${dcDetail.yearly.length}년차)`}
+            </button>
+          )}
+          <div style={{ fontSize: 9, color: "var(--text-tertiary)", marginTop: 8, lineHeight: 1.5 }}>
+            과거 연도에도 지금 입력된 월급·상여금 기준을 그대로 적용해 계산해요. 실제로는 그해 급여를 기준으로 매년 납입되므로, 급여가 올랐다면 실제 누적액과 차이가 있을 수 있어요.
+          </div>
+        </div>
+      )}
 
       <div style={S.card}>
         <div style={S.cardRowBetween}>
@@ -2918,19 +2995,30 @@ function SeveranceTab({ profile, onUpdateProfile }) {
       )}
 
       <div style={S.card}>
-        <div style={S.cardLabel}>계산 방식 (고용노동부 평균임금 기준)</div>
-        <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8, lineHeight: 1.7 }}>
-          1일 평균임금 = (최근 3개월 임금총액 + 상여금×3/12 + 연차수당×3/12) ÷ 3개월간 총 일수
-          <br />
-          {isDC ? "DC 적립원금" : "퇴직금"} = 1일 평균임금 × 30일 × (재직일수 ÷ 365)
-          {isDC && (
-            <>
-              <br />
-              DC 예상 수령액 = 적립원금 + 누적 운용 수익
-            </>
-          )}
-          <br />
-          이전 직장 경력은 캐릭터 성장에만 반영되고, {isDC ? "적립원금" : "퇴직금"}은 현재 회사 재직 기간만 계산해요. 통상임금 기준 계산과는 다를 수 있어요.
+        <div style={S.cardLabel}>{isDC ? "계산 방식 (DC형 · 확정기여형)" : "계산 방식 (DB형 · 고용노동부 평균임금 기준)"}</div>
+        {isDC ? (
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8, lineHeight: 1.7 }}>
+            연간 임금총액 = 월급×12 + 연간 상여금 + 연간 연차수당
+            <br />
+            연간 DC 부담금(법정 최소) = 연간 임금총액 ÷ 12
+            <br />
+            DC 적립원금 = 입사일부터 1년 단위로, 그해 재직일수만큼 연간 DC 부담금을 비례 계산해 합산
+            <br />
+            DC 예상 수령액 = 적립원금 + 누적 운용 수익
+            <br />
+            DC형은 회사가 매년 임금의 1/12 이상을 근로자 개인 계좌에 넣어주고, 그 돈을 근로자가 직접 운용해요. DB형과 달리 퇴사 시점 평균임금이 아니라 매년 쌓인 부담금이 기준이에요.
+          </div>
+        ) : (
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8, lineHeight: 1.7 }}>
+            1일 평균임금 = (최근 3개월 임금총액 + 상여금×3/12 + 연차수당×3/12) ÷ 3개월간 총 일수
+            <br />
+            퇴직금 = 1일 평균임금 × 30일 × (재직일수 ÷ 365)
+            <br />
+            DB형은 회사가 정한 산정 공식대로, 퇴사 시점 평균임금을 기준으로 회사가 직접 지급해요. 재직 중 운용 손익과 무관하게 이 금액이 확정돼요.
+          </div>
+        )}
+        <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 10, lineHeight: 1.6 }}>
+          이전 직장 경력은 캐릭터 성장에만 반영되고, {isDC ? "적립원금" : "퇴직금"}은 현재 회사 재직 기간만 계산해요. 통상임금 기준 계산과는 다를 수 있고, 실제 회사 규정에 따라 달라질 수 있어요.
         </div>
       </div>
     </div>
