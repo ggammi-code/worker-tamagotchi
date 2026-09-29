@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-version" content="20260929-2" />
+<meta name="app-version" content="20260929-3" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
 <title>직장인 다마고찌</title>
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -2741,7 +2741,7 @@ const SEVERANCE_TYPES = [
 // 연간 임금총액의 1/12 이상을 근로자의 DC 계좌에 부담금으로 납입해야 함(법정 최소 기준).
 // DB형처럼 "퇴사 시점 평균임금"이 아니라, 입사일부터 1년 단위로 해마다 쌓이는 부담금을 계산함.
 // 과거 연도에도 현재 급여·상여금 기준을 그대로 적용한 값으로, 실제 급여 인상 이력은 반영하지 못함.
-function calcDCDetail({ joinDate, monthlySalary, annualBonus = 0, annualLeavePay = 0, targetDate }) {
+function calcDCDetail({ joinDate, monthlySalary, annualBonus = 0, annualLeavePay = 0, targetDate, overrides = {} }) {
   if (!joinDate || !monthlySalary) return { principal: 0, annualWage: 0, annualContribution: 0, workDays: 0, yearly: [] };
 
   const start = new Date(joinDate + "T00:00:00");
@@ -2760,8 +2760,10 @@ function calcDCDetail({ joinDate, monthlySalary, annualBonus = 0, annualLeavePay
       next.setFullYear(next.getFullYear() + 1);
       const segEnd = next < end ? next : end;
       const days = Math.max(0, Math.round((segEnd - cursor) / (1000 * 60 * 60 * 24)));
-      const amount = annualContribution * (days / 365);
-      yearly.push({ year: idx, from: dateKeyOf(cursor), to: dateKeyOf(segEnd), days, amount });
+      const auto = annualContribution * (days / 365);
+      const hasOverride = overrides[idx] !== undefined && overrides[idx] !== null && overrides[idx] !== "";
+      const amount = hasOverride ? Number(overrides[idx]) : auto;
+      yearly.push({ year: idx, from: dateKeyOf(cursor), to: dateKeyOf(segEnd), days, amount, auto, overridden: hasOverride });
       principal += amount;
       cursor = next;
       idx++;
@@ -2782,6 +2784,8 @@ function SeveranceTab({ profile, onUpdateProfile }) {
   const [revealed, setRevealed] = useState(false);
   const [revealedSalary, setRevealedSalary] = useState(false);
   const [showAllYears, setShowAllYears] = useState(false);
+  const [editingYear, setEditingYear] = useState(null);
+  const [yearInput, setYearInput] = useState("");
 
   const severanceType = profile.severanceType || "db";
   const isDC = severanceType === "dc";
@@ -2799,13 +2803,22 @@ function SeveranceTab({ profile, onUpdateProfile }) {
     annualLeavePay: profile.annualLeavePay || 0,
     targetDate: targetDate || null,
   });
+  const dcYearOverrides = profile.dcYearOverrides || {};
   const dcDetail = calcDCDetail({
     joinDate: profile.joinDate,
     monthlySalary: profile.salary || 0,
     annualBonus: profile.annualBonus || 0,
     annualLeavePay: profile.annualLeavePay || 0,
     targetDate: targetDate || null,
+    overrides: dcYearOverrides,
   });
+  const saveYearOverride = (year, value) => {
+    const next = { ...dcYearOverrides };
+    if (value === "" || value === null) delete next[year];
+    else next[year] = Number(value);
+    onUpdateProfile({ dcYearOverrides: next });
+    setEditingYear(null);
+  };
   const principal = isDC ? dcDetail.principal : result.severance;
   const workDaysForYears = isDC ? dcDetail.workDays : result.workDays;
   const years = (workDaysForYears / 365).toFixed(2);
@@ -2893,17 +2906,59 @@ function SeveranceTab({ profile, onUpdateProfile }) {
             <span style={{ fontSize: 9, color: "var(--text-tertiary)" }}>연간 임금총액 {mask(dcDetail.annualWage)}</span>
           </div>
           <div style={{ marginTop: 8 }}>
-            {visibleYears.map((y) => (
-              <div key={y.year} style={S.eventRow}>
-                <span style={{ fontSize: 12, color: "var(--text-primary)" }}>{y.year}년 차</span>
-                <div style={{ marginLeft: 8, flex: 1 }}>
-                  <div style={{ fontSize: 10, color: "var(--text-tertiary)" }}>
-                    {y.from} ~ {y.to} · {y.days}일
+            {visibleYears.map((y) =>
+              editingYear === y.year ? (
+                <div key={y.year} style={{ padding: "10px 0", borderTop: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 11, color: "var(--text-primary)", marginBottom: 6 }}>
+                    {y.year}년 차 적립액 직접 입력 ({y.from} ~ {y.to})
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      style={{ ...S.input, flex: 1 }}
+                      type="number"
+                      autoFocus
+                      placeholder={`자동 계산값: ${Math.round(y.auto).toLocaleString("ko-KR")}`}
+                      value={yearInput}
+                      onChange={(e) => setYearInput(e.target.value)}
+                    />
+                    <button style={{ ...S.smallAddBtn }} onClick={() => saveYearOverride(y.year, yearInput)}>
+                      저장
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
+                    <button style={S.linkBtn} onClick={() => setEditingYear(null)}>
+                      취소
+                    </button>
+                    {y.overridden && (
+                      <button style={{ ...S.linkBtn, color: "var(--text-tertiary)" }} onClick={() => saveYearOverride(y.year, "")}>
+                        자동 계산값으로 되돌리기
+                      </button>
+                    )}
                   </div>
                 </div>
-                <span style={{ fontSize: 12, color: "#2F6B4F", fontFamily: "var(--font-main)" }}>{mask(y.amount)}</span>
-              </div>
-            ))}
+              ) : (
+                <div key={y.year} style={S.eventRow}>
+                  <span style={{ fontSize: 12, color: "var(--text-primary)" }}>
+                    {y.year}년 차{y.overridden && <span style={{ fontSize: 8, color: "#4FA5C4", marginLeft: 4, border: "1px solid #4FA5C440", borderRadius: 8, padding: "1px 5px" }}>직접입력</span>}
+                  </span>
+                  <div style={{ marginLeft: 8, flex: 1 }}>
+                    <div style={{ fontSize: 10, color: "var(--text-tertiary)" }}>
+                      {y.from} ~ {y.to} · {y.days}일
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 12, color: "#2F6B4F", fontFamily: "var(--font-main)", marginRight: 8 }}>{mask(y.amount)}</span>
+                  <button
+                    style={S.iconBtn}
+                    onClick={() => {
+                      setEditingYear(y.year);
+                      setYearInput(y.overridden ? String(Math.round(y.amount)) : "");
+                    }}
+                  >
+                    <span style={{ fontSize: 10, color: "#2F6B4F" }}>수정</span>
+                  </button>
+                </div>
+              )
+            )}
           </div>
           {dcDetail.yearly.length > YEAR_LIMIT && (
             <button style={{ ...S.linkBtn, display: "block", margin: "8px auto 0" }} onClick={() => setShowAllYears(!showAllYears)}>
