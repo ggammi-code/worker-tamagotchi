@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-version" content="20261021-2" />
-<meta name="app-changelog" content="흰 화면 근본 원인(모듈 import 오류) 수정" />
+<meta name="app-version" content="20261021-3" />
+<meta name="app-changelog" content="오늘의 운세 표시 명확화" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
 <title>직장인 다마고찌</title>
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1307,6 +1307,11 @@ function WalkInAnimation({ onComplete }) {
 // 업데이트 내역 — 새 버전을 올릴 때 배열 맨 앞에 새 항목을 추가해요.
 // items 첫 줄은 업데이트 배너에도 요약으로 노출돼요(길지 않게).
 const CHANGELOG = [
+  {
+    version: "20261021-3",
+    date: "2026-10-21",
+    items: ["오늘의 운세에서 '내 일주'와 '오늘'이 한 단어처럼 보여 혼동되던 표시를 라벨로 명확히 구분"],
+  },
   {
     version: "20261021-2",
     date: "2026-10-21",
@@ -3130,10 +3135,16 @@ function FortuneTab({ profile, onUpdateProfile }) {
           </button>
         </div>
         <div style={{ textAlign: "center", padding: "14px 0 6px" }}>
-          <div style={{ fontFamily: "var(--font-main)", fontSize: 20, color: "#2F6B4F" }}>
-            {fortune.myPillar.label}
-            <span style={{ color: "var(--text-quaternary)", margin: "0 6px" }}>×</span>
-            {fortune.todayPillar.label}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "var(--text-quaternary)", marginBottom: 2 }}>내 일주</div>
+              <div style={{ fontFamily: "var(--font-main)", fontSize: 19, color: "#2F6B4F" }}>{fortune.myPillar.label}일주</div>
+            </div>
+            <span style={{ color: "var(--text-quaternary)", fontSize: 12, marginTop: 10 }}>vs</span>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 9, color: "var(--text-quaternary)", marginBottom: 2 }}>오늘</div>
+              <div style={{ fontFamily: "var(--font-main)", fontSize: 19, color: "var(--text-secondary)" }}>{fortune.todayPillar.label}일</div>
+            </div>
           </div>
           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8 }}>{relationLabel}</div>
         </div>
