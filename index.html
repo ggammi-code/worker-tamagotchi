@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-version" content="20261021-4" />
-<meta name="app-changelog" content="데이터 저장이 전혀 안 되던 근본 원인 수정" />
+<meta name="app-version" content="20261021-5" />
+<meta name="app-changelog" content="홈 화면 앱에서 상단 가림 현상 수정" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
 <title>직장인 다마고찌</title>
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -1112,7 +1112,7 @@ function WorkerTamagotchi() {
   }
 
   const phoneFrameStyle = IS_STANDALONE
-    ? { borderRadius: 0, border: "none", boxShadow: "none" }
+    ? { borderRadius: 0, border: "none", boxShadow: "none", paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }
     : { borderRadius: 28, border: "1px solid var(--border)", boxShadow: "0 30px 60px -20px rgba(0,0,0,0.6)" };
 
   return (
@@ -1307,6 +1307,11 @@ function WalkInAnimation({ onComplete }) {
 // 업데이트 내역 — 새 버전을 올릴 때 배열 맨 앞에 새 항목을 추가해요.
 // items 첫 줄은 업데이트 배너에도 요약으로 노출돼요(길지 않게).
 const CHANGELOG = [
+  {
+    version: "20261021-5",
+    date: "2026-10-21",
+    items: ["홈 화면에 추가한 앱에서 상단(사원증 체인지 버튼 등)이 상태표시줄/다이나믹 아일랜드에 가려 안 보이던 문제 수정"],
+  },
   {
     version: "20261021-4",
     date: "2026-10-21",
