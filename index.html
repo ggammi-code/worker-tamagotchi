@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-version" content="20261021-1" />
-<meta name="app-changelog" content="앱 용량 대폭 축소(흰 화면 문제 해결)" />
+<meta name="app-version" content="20261021-2" />
+<meta name="app-changelog" content="흰 화면 근본 원인(모듈 import 오류) 수정" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
 <title>직장인 다마고찌</title>
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -72,9 +72,27 @@
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-presets="react" data-type="module">
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Briefcase, PiggyBank, BookOpen, Plus, X, Sparkles, Trash2, Moon, Home, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback, useMemo } = React;
+function Icon({ size = 24, color = "currentColor", strokeWidth = 2, style, children }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style}>
+      {children}
+    </svg>
+  );
+}
+function Briefcase(props) { return <Icon {...props}><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></Icon>; }
+function PiggyBank(props) { return <Icon {...props}><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-8.5-.5-10.5 2C4 10.5 4 12 4 13.5 4 15.5 5 17 7 18v3h4v-2h3v2h4v-4c1-.5 2-1.5 2.5-2.5H22v-4h-1.5c-.3-1-1-1.8-1.5-2.5V5Z" /><circle cx="16.5" cy="10.5" r="0.5" fill={props.color || "currentColor"} /></Icon>; }
+function BookOpen(props) { return <Icon {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2Z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7Z" /></Icon>; }
+function Plus(props) { return <Icon {...props}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></Icon>; }
+function X(props) { return <Icon {...props}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></Icon>; }
+function Sparkles(props) { return <Icon {...props}><path d="m12 3-1.6 4.9a2 2 0 0 1-1.3 1.3L4 11l5.1 1.6a2 2 0 0 1 1.3 1.3L12 19l1.6-5.1a2 2 0 0 1 1.3-1.3L20 11l-5.1-1.8a2 2 0 0 1-1.3-1.3L12 3Z" /></Icon>; }
+function Trash2(props) { return <Icon {...props}><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></Icon>; }
+function Moon(props) { return <Icon {...props}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></Icon>; }
+function Home(props) { return <Icon {...props}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /><polyline points="9 22 9 12 15 12 15 22" /></Icon>; }
+function Calendar(props) { return <Icon {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></Icon>; }
+function ChevronLeft(props) { return <Icon {...props}><polyline points="15 18 9 12 15 6" /></Icon>; }
+function ChevronRight(props) { return <Icon {...props}><polyline points="9 18 15 12 9 6" /></Icon>; }
 
 // ---------- 성장 단계 (총 경력년수 기준) ----------
 const STAGES = [
@@ -873,7 +891,7 @@ function calcSeverance({ joinDate, monthlySalary, annualBonus = 0, annualLeavePa
 }
 
 // ---------- 메인 앱 ----------
-export default function WorkerTamagotchi() {
+function WorkerTamagotchi() {
   const [loaded, setLoaded] = useState(false);
   const [profile, setProfile] = useState(null);
   const [careerHistory, setCareerHistory] = useState([]);
@@ -1289,6 +1307,11 @@ function WalkInAnimation({ onComplete }) {
 // 업데이트 내역 — 새 버전을 올릴 때 배열 맨 앞에 새 항목을 추가해요.
 // items 첫 줄은 업데이트 배너에도 요약으로 노출돼요(길지 않게).
 const CHANGELOG = [
+  {
+    version: "20261021-2",
+    date: "2026-10-21",
+    items: ["깃허브 페이지에서 흰 화면으로 나오던 근본 원인 수정 — ES 모듈 import 구문을 제거하고 아이콘을 자체 내장 방식으로 교체"],
+  },
   {
     version: "20261021-1",
     date: "2026-10-21",
