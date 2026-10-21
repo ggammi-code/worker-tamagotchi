@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="app-version" content="20261021-3" />
-<meta name="app-changelog" content="오늘의 운세 표시 명확화" />
+<meta name="app-version" content="20261021-4" />
+<meta name="app-changelog" content="데이터 저장이 전혀 안 되던 근본 원인 수정" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
 <title>직장인 다마고찌</title>
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -922,9 +922,9 @@ function WorkerTamagotchi() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await window.storage.get(STORAGE_KEY, false);
-        if (res && res.value) {
-          const data = JSON.parse(res.value);
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const data = JSON.parse(raw);
           setProfile(data.profile || null);
           setCareerHistory(data.careerHistory || []);
           setDiary(data.diary || []);
@@ -945,7 +945,7 @@ function WorkerTamagotchi() {
 
   const persist = useCallback(async (next) => {
     try {
-      await window.storage.set(STORAGE_KEY, JSON.stringify(next), false);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch (e) {
       console.error("저장 실패", e);
     }
@@ -1307,6 +1307,11 @@ function WalkInAnimation({ onComplete }) {
 // 업데이트 내역 — 새 버전을 올릴 때 배열 맨 앞에 새 항목을 추가해요.
 // items 첫 줄은 업데이트 배너에도 요약으로 노출돼요(길지 않게).
 const CHANGELOG = [
+  {
+    version: "20261021-4",
+    date: "2026-10-21",
+    items: ["진짜 원인 발견: 저장 기능이 claude.ai 미리보기 전용 API를 쓰고 있어서 깃허브 등 실제 배포 환경에서는 저장/불러오기가 전혀 동작하지 않던 문제 수정 — 이제 모든 브라우저에서 정상 저장됨"],
+  },
   {
     version: "20261021-3",
     date: "2026-10-21",
